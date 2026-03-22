@@ -7,4 +7,5 @@ plotly
 folium
 pathlib
 pandas
+jupyter
 
