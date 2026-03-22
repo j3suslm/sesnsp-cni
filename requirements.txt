@@ -1,0 +1,10 @@
+shiny
+shinywidgets
+polars
+fastexcel
+pyarrow
+plotly
+folium
+pathlib
+pandas
+
