@@ -1,0 +1,313 @@
+---
+title: SESNSP - Prueba Técnica
+author: Jesús L. Monroy
+date: 2026-03-22
+lang: es
+format: 
+  html:
+    toc: true
+    embed-resources: true
+    brand: _brand.yml
+    theme: styles.scss
+jupyter: python3
+---
+
+![](sesnsp.png){width=30%}
+
+## Procesamiento de datos
+
+### Librerias
+
+```{python}
+# libraries
+import numpy as np
+import pandas as pd
+import polars as pl
+import plotly.express as px
+from great_tables import GT, md
+from pathlib import Path
+```
+
+### Archivo origen (xlsx)
+
+```{python}
+# read origin files
+incidencias = pl.read_excel("insumos.xlsx", sheet_name="1.1 Incidencia")
+victimas = pl.read_excel("insumos.xlsx", sheet_name="1.2 Víctimas")
+flagrancias = pl.read_excel("insumos.xlsx", sheet_name="2. Flagrancias")
+ordenes = pl.read_excel("insumos.xlsx", sheet_name="3. Órdenes")
+sentencias = pl.read_excel("insumos.xlsx", sheet_name="4. Sentencias")
+```
+
+```{python}
+# folder path
+folder = Path("datasets")
+
+# create folder
+folder.mkdir(parents=True, exist_ok=True)
+```
+
+### Archivos parquet
+
+```{python}
+# save parquet files in datasets
+incidencias.write_parquet('datasets/incidencias.parquet')
+victimas.write_parquet('datasets/victimas.parquet')
+flagrancias.write_parquet('datasets/flagrancias.parquet')
+ordenes.write_parquet('datasets/ordenes.parquet')
+sentencias.write_parquet('datasets/sentencias.parquet')
+```
+
+```{python}
+# read new parquet files
+incidencias = pl.read_parquet('datasets/incidencias.parquet')
+victimas = pl.read_parquet('datasets/victimas.parquet')
+flagrancias = pl.read_parquet('datasets/flagrancias.parquet')
+ordenes = pl.read_parquet('datasets/ordenes.parquet')
+sentencias = pl.read_parquet('datasets/sentencias.parquet')
+```
+
+## Limpieza y transformación
+
+```{python}
+# Define the mapping
+rep_map = {"Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U"}
+
+# Create the expression dynamically
+expr = pl.col("Delegación hechos")
+
+for accent, clean in rep_map.items():
+    expr = expr.str.replace_all(accent, clean)
+
+# Apply to the dataframe
+incidencias = (
+    incidencias
+        .with_columns(
+            # uppercase
+            pl.col('Delegación hechos').str.to_uppercase().alias("Delegación hechos"),
+            # replace accents
+            expr.alias("delegacion")
+        )
+        # drop null coordinates
+        .drop_nulls(subset='COORD. X')
+        .select(['Carpeta de investigación',
+                'Fecha inicio',
+                'Hora inicio',
+                'Fecha hechos',
+                'Hora hechos',
+                'delegacion',
+                'COORD. X',
+                'COORD. Y',
+                ])
+)
+```
+
+### Incidencias
+
+```{python}
+from pyproj import Transformer
+
+# transformador coordenadas
+transformer = Transformer.from_crs("epsg:32614", "epsg:4326", always_xy=True)
+
+# función de transformación vectorizada
+def proyectar_coordenadas(coords):
+    """
+    coords es una lista de dos series de Polars: [COORD. X, COORD. Y]
+    Retorna un Struct con Latitud y Longitud
+    """
+    x = coords[0].to_numpy()
+    y = coords[1].to_numpy()
+    
+    # pyproj acepta arrays de numpy, lo que lo hace ultra rápido
+    lon, lat = transformer.transform(x, y)
+    
+    return pl.DataFrame({
+        "latitud": lat,
+        "longitud": lon
+    }).to_struct("coords_wgs84")
+
+incidencias = incidencias.with_columns(
+    pl.map_batches(
+        [pl.col("COORD. X"), pl.col("COORD. Y")], 
+        proyectar_coordenadas
+    ).alias("posicion")
+).unnest("posicion")
+
+incidencias = (
+    incidencias
+        .select(['Carpeta de investigación',
+            'Fecha inicio',
+            'Hora inicio',
+            'Fecha hechos',
+            'Hora hechos',
+            'delegacion',
+            'latitud',
+            'longitud',
+        ])
+        .rename(
+            {
+                'Carpeta de investigación': 'carpeta_investigacion',
+                'Fecha inicio':'fecha_inicio',
+                'Hora inicio':'hora_inicio',
+                'Fecha hechos':'fecha_hechos',
+                'Hora hechos':'hora_hechos',
+
+            }
+        )
+)
+```
+
+```{python}
+incidencias.describe()
+```
+
+### Victimas
+
+```{python}
+victimas =(
+    victimas
+    .with_columns(
+        # replace non-binary sex
+        pl.col('Sexo').str.replace('Trans Femenino', 'Masculino').alias('Sexo'),
+        # replace text
+        pl.col('Edad').replace('NO ESPECIFICO','0'),
+    )
+    .with_columns(
+        # cast to integer
+        pl.col('Edad').cast(pl.Int32).alias('Edad'),
+    )
+    .rename(
+            {
+                'Carpeta de investigación': 'carpeta_investigacion',
+                'Sexo': 'sexo',
+                'Edad': 'edad',
+            }
+    )
+)
+```
+
+```{python}
+victimas.describe()
+```
+
+```{python}
+# inner join to avoid nulls
+df = victimas.join(incidencias, on='carpeta_investigacion', how='inner')
+```
+
+### Flagrancias
+
+```{python}
+flagrancias = (
+    flagrancias
+        .rename({
+            'Carpeta de investigación':'carpeta_investigacion',
+            'Edad imputado':'edad_imp',
+            'Sexo imputado':'sexo_imp',
+            'Libertad':'libertad',
+            'Incompetencia':'incompetencia',
+            'Mecanismo alternativo':'mecanismo_alt',
+            'Judicialización':'judicializacion',
+            'Legalidad de detención':'legal_detencion',
+            'Vinculación a proceso':'vinculacion_proceso',
+            'Prisión preventiva oficiosa':'PPO',
+            'Prisión preventiva justificada':'PPJ',
+        })
+        .with_columns(
+            total_flagrancias=pl.sum_horizontal(
+                pl.exclude('carpeta_investigacion','edad_imp','sexo_imp')
+            )
+        )
+)
+```
+
+```{python}
+flagrancias.describe()
+```
+
+### Ordenes
+
+```{python}
+ordenes = (
+    ordenes
+        .rename({
+            'Carpeta de investigación':'carpeta_investigacion',
+            'Fecha recepción':'fecha_recepcion',
+            'Fecha cumplimiento':'fecha_cumplimiento',
+        })
+        .with_columns(
+            pl.col('fecha_recepcion').dt.date().alias('fecha_recepcion')
+        )
+)
+```
+
+```{python}
+ordenes.describe()
+```
+
+### Sentencias
+
+```{python}
+sentencias = (
+    sentencias
+        .rename({
+            'Carpeta de investigación':'carpeta_investigacion',
+            'Fecha de fallo':'fecha_fallo',
+            'Tipo de fallo':'tipo_fallo',
+            'Sistema':'sistema',
+        })
+        .with_columns(
+            pl.col('fecha_fallo').dt.date().alias('fecha_fallo')
+        )
+)
+```
+
+```{python}
+sentencias.describe()
+```
+
+## Joins
+
+```{python}
+# left join with remaining tables
+df = (
+    df
+        .join(flagrancias, on='carpeta_investigacion', how='left')
+        .join(ordenes, on='carpeta_investigacion', how='left')
+        .join(sentencias, on='carpeta_investigacion', how='left')
+)
+```
+
+## Consolidado parquet
+
+```{python}
+# save file
+df.write_parquet('datasets/df.parquet')
+```
+
+```{python}
+df.describe()
+```
+
+## Contacto {style="color: #781310; font-size: 40px; font-style: bold;"}
+
+::: {style="color: #6e653f; font-size: 28px; font-style: bold;"}
+Jesus L. Monroy
+:::
+
+::: {style="color: #6f7271; font-size: 20px; font-style: italic;"}
+Economist & Data Scientist
+:::
+
+::: {style="color: #6f7271; font-size: 14px; width: 35%; text-align: justify;"}
+Passionate about creating tools that make data accessible and impactful using SQL, Python, Streamlit, and Tableau in sectors like Public Security, e-commerce, and Healthcare.     
+BA in Economics, MA in Information Technology, and Data Science and Machine Learning certification.
+:::
+
+::: {style="font-size: 15px;"}
+[Portfolio]([https://jesuslm-my-website.share.connect.posit.cloud](https://jesuslm-my-website.share.connect.posit.cloud/)) | 
+[Linkedin]([https://www.linkedin.com/in/j3sus-lm](https://www.linkedin.com/in/j3sus-lm)) | 
+[Twitter]([https://x.com/j3suslm](https://x.com/j3suslm)) | 
+[Tableau]([https://tinyurl.com/jesuslm-tableau](https://tinyurl.com/jesuslm-tableau))
+:::

@@ -1,0 +1,78 @@
+---
+title: Prueba Técnica
+title-slide-attributes:
+  data-background-image: slides-fondo.png
+  data-background-size: cover
+  data-background-opacity: "0.9"
+author: "*Jesus L. Monroy*"
+date: '2026-03-22'
+date-format: MMM, YYYY
+lang: en
+format:
+  revealjs:
+    theme: custom.scss
+    brand: _brand.yml
+    auto-stretch: false
+    embed-resources: true
+    view-distance: 10
+    slide-number: c/t
+    footer: © 2026
+    transition: fade
+    transition-speed: slow
+    fig-cap-location: bottom
+execute:
+  echo: false
+jupyter: python3
+---
+
+# Dashboard de Incidencia Delictiva {background-image="slides-fondo.png"}
+
+<!-- section2 -->
+## Overview {.smaller background-image="slides-fondo.png"}
+
+Esta aplicación está elaborada con Python, Shiny y Polars.
+El tablero está diseñado para monitorear la incidencia delictiva en la Ciudad de México.
+
+:::{.goals}
+::::{.goals-container}
+**Nota**
+
+Puedes interactuar con la aplicación desde esta diapositiva!
+:::
+:::
+
+## {background-image="slides-fondo.png"}
+::: {style="text-align: center;"}
+```{=html}
+<iframe src="https://jesuslm-sesnsp-cni-tablero.share.connect.posit.cloud"
+        data-external="1"
+        style="width: 150%; height: 850px; border: none; transform: scale(0.8); transform-origin: 0 0;">
+</iframe>
+```
+:::
+
+
+<!-- section -->
+## {.center background-image="slides-fondo.png"}
+
+### Contacto {style="color: #781310; font-size: 80px; font-style: bold;"}
+
+::: {style="color: #6e653f; font-size: 37px; font-style: bold;"}
+Jesus L. Monroy
+:::
+
+::: {style="color: #6f7271; font-size: 22px; font-style: italic;"}
+Economist & Data Scientist
+:::
+
+::: {style="color: #6f7271; font-size: 14px; width: 33%; text-align: justify;"}
+Passionate about creating tools that make data accessible and impactful using SQL, Python, Streamlit, and Tableau in sectors like Public Security, e-commerce, and Healthcare.     
+BA in Economics, MA in Information Technology, and Data Science and Machine Learning certification.
+:::
+
+::: {style="font-size: 15px;"}
+[Portfolio]([https://jesuslm-my-website.share.connect.posit.cloud](https://jesuslm-my-website.share.connect.posit.cloud/)) | 
+[Linkedin]([https://www.linkedin.com/in/j3sus-lm](https://www.linkedin.com/in/j3sus-lm)) | 
+[Twitter]([https://x.com/j3suslm](https://x.com/j3suslm)) | 
+[Tableau]([https://tinyurl.com/jesuslm-tableau](https://tinyurl.com/jesuslm-tableau))
+:::
