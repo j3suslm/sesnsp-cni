@@ -32,11 +32,11 @@ from pathlib import Path
 
 ```{python}
 # read origin files
-incidencias = pl.read_excel("../insumos.xlsx", sheet_name="1.1 Incidencia")
-victimas = pl.read_excel("../insumos.xlsx", sheet_name="1.2 Víctimas")
-flagrancias = pl.read_excel("../insumos.xlsx", sheet_name="2. Flagrancias")
-ordenes = pl.read_excel("../insumos.xlsx", sheet_name="3. Órdenes")
-sentencias = pl.read_excel("../insumos.xlsx", sheet_name="4. Sentencias")
+incidencias = pl.read_excel("insumos.xlsx", sheet_name="1.1 Incidencia")
+victimas = pl.read_excel("insumos.xlsx", sheet_name="1.2 Víctimas")
+flagrancias = pl.read_excel("insumos.xlsx", sheet_name="2. Flagrancias")
+ordenes = pl.read_excel("insumos.xlsx", sheet_name="3. Órdenes")
+sentencias = pl.read_excel("insumos.xlsx", sheet_name="4. Sentencias")
 ```
 
 ```{python}
