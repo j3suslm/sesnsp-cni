@@ -13,7 +13,7 @@ df = pl.read_parquet('datasets/df.parquet')
 delegaciones = sorted(df['delegacion'].unique().to_list())
 
 # page layout 
-ui.page_opts(title="Monitor de Incidencias CDMX", fillable=True) 
+ui.page_opts(title="Monitor de Incidencias CDMX", fillable=True, theme=ui.Theme.from_brand('_brand.yml'))
 
 # sidebar
 with ui.sidebar(open='desktop', width=260,):
@@ -221,7 +221,7 @@ with ui.nav_panel("Overview"):
 
     * Módulo de Incidencia: Análisis temporal de carpetas iniciadas con filtros dinámicos por municipio y rango de fechas.
     * Geointeligencia: Mapeo de precisión mediante coordenadas UTM convertidas para la identificación de hotspots criminales.
-    * Análisis de Víctimas y Sentencias: Integración de datos sociodemográficos (sexo/edad) y estatus legal para medir la eficacia del sistema de justicia.
+    * Análisis de Víctimas y Sentencias: Integración de datos sociodemográficos (sexo/edad).
 
     <h4 style="color:#6f7271;">Herramientas IT usadas</h4>
     
@@ -368,7 +368,7 @@ with ui.nav_panel("Anexos"):
                     'fecha_hechos',
                     'delegacion',
                     ),
-                    row_selection_mode="single",
+                    selection_mode="single",
                     summary=False,
                 )
             
@@ -380,7 +380,7 @@ with ui.nav_panel("Anexos"):
                     df = generar_tabla_resumen(filtered_df())
                     return render.DataGrid(
                         df,
-                        row_selection_mode="single",
+                        selection_mode="single",
                         width="100%",
                         summary=False,
                     )
@@ -392,6 +392,6 @@ with ui.nav_panel("Anexos"):
             def inc_del_table():
                 return render.DataGrid(
                     incidencias_delegacion(),
-                    row_selection_mode="single",
+                    selection_mode="single",
                     summary=False,
                 )

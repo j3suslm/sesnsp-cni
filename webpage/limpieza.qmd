@@ -1,5 +1,5 @@
 ---
-title: SESNSP - Prueba técnica
+title: SESNSP - Prueba Técnica
 author: Jesús L. Monroy
 date: 2026-03-22
 lang: es
@@ -14,9 +14,9 @@ jupyter: python3
 
 ![](sesnsp.png){width=30%}
 
-# Procesamiento de datos
+## Procesamiento de datos
 
-## Librerías
+### Librerias
 
 ```{python}
 # libraries
@@ -28,7 +28,7 @@ from great_tables import GT, md
 from pathlib import Path
 ```
 
-## Archivo origen (xlsx)
+### Archivo origen (xlsx)
 
 ```{python}
 # read origin files
@@ -47,7 +47,7 @@ folder = Path("datasets")
 folder.mkdir(parents=True, exist_ok=True)
 ```
 
-## Archivos parquet
+### Archivos parquet
 
 ```{python}
 # save parquet files in datasets
@@ -67,7 +67,7 @@ ordenes = pl.read_parquet('datasets/ordenes.parquet')
 sentencias = pl.read_parquet('datasets/sentencias.parquet')
 ```
 
-## Limpieza de datos
+## Limpieza y transformación
 
 ```{python}
 # Define the mapping
@@ -267,7 +267,7 @@ sentencias = (
 sentencias.describe()
 ```
 
-### Joins
+## Joins
 
 ```{python}
 # left join with remaining tables
@@ -279,7 +279,7 @@ df = (
 )
 ```
 
-### Consolidado parquet
+## Consolidado parquet
 
 ```{python}
 # save file
@@ -289,3 +289,25 @@ df.write_parquet('datasets/df.parquet')
 ```{python}
 df.describe()
 ```
+
+## Contacto {style="color: #781310; font-size: 40px; font-style: bold;"}
+
+::: {style="color: #6e653f; font-size: 28px; font-style: bold;"}
+Jesus L. Monroy
+:::
+
+::: {style="color: #6f7271; font-size: 20px; font-style: italic;"}
+Economist & Data Scientist
+:::
+
+::: {style="color: #6f7271; font-size: 14px; width: 35%; text-align: justify;"}
+Passionate about creating tools that make data accessible and impactful using SQL, Python, Streamlit, and Tableau in sectors like Public Security, e-commerce, and Healthcare.     
+BA in Economics, MA in Information Technology, and Data Science and Machine Learning certification.
+:::
+
+::: {style="font-size: 15px;"}
+[Portfolio]([https://jesuslm-my-website.share.connect.posit.cloud](https://jesuslm-my-website.share.connect.posit.cloud/)) | 
+[Linkedin]([https://www.linkedin.com/in/j3sus-lm](https://www.linkedin.com/in/j3sus-lm)) | 
+[Twitter]([https://x.com/j3suslm](https://x.com/j3suslm)) | 
+[Tableau]([https://tinyurl.com/jesuslm-tableau](https://tinyurl.com/jesuslm-tableau))
+:::
