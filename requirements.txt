@@ -7,6 +7,7 @@ plotly
 folium
 pathlib
 pandas
+pyproj
 great-tables
 jupyter
 
