@@ -1,0 +1,94 @@
+/*-- scss:defaults --*/
+$body-color: #6f7271;
+$presentation-heading-color: #6e653f;
+$font-family-sans-serif: "Noto Sans";
+$font-family-monospace: "Noto Sans";
+$presentation-heading-font: "Noto Sans";
+
+
+/*-- scss:rules --*/
+// change title color
+#title-slide {
+  .title {
+    color: #781310;
+    font-size: 2.5em;
+  }
+// subtitle
+.subtitle {
+    color: #6e653f;
+    font-size: 1.5em;
+  }
+// change author color
+  .quarto-title-author {
+    color: #6e653f;
+    font-size: 1.5em;
+  }
+// change affiliation color
+  .quarto-title-affiliation {
+    color: #6e653f;
+  }
+
+  .date {
+    color: #6f7271;
+    font-size: 1.5em;
+  }
+}
+
+
+// change h1, h2 color
+.reveal h1, h2 {
+  color: #781310;
+}
+
+// change footer color
+.reveal .footer {
+  color: #6e653f;
+}
+
+// General styles for all tab links (for the text color)
+.panel-tabset-tabby a {
+  color: #575031;
+}
+
+
+.slide-menu-button {
+  color: #575031;
+}
+
+.hamburger-menu-icon {
+  /* Change the color of the lines */
+  background-color: #575031;
+}
+
+// callout customization
+/*-- scss:rules --*/
+.goals {
+  margin: 1em 0;
+  border: 1px solid #98989a;
+  border-left: 10px solid #bc955c; 
+  border-radius: 5px;
+}
+
+.goals-header {
+  margin-left: 0em;
+  padding-left: 60px;
+  padding-top:  5px;
+  padding-bottom: 0.1em;
+  color: white;
+  background-color: #bc955c;
+  border-top-right-radius: 5px;
+  font-size: 14pt;
+  font-weight: bold;
+  background-size: 40px;
+  background-repeat: no-repeat;
+  background-position: 15px center;
+}
+
+.goals-container {
+  padding-top: 5px;
+  padding-left: 10px;
+  color: #6f7271;
+  font-size: 11pt;
+  background-color: white;
+  border-bottom-right-radius: 5px;
+}

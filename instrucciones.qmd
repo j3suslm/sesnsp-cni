@@ -1,3 +1,7 @@
+---
+format: typst
+---
+
 # Justificación
 
 ## Uso de Software (Python)
@@ -58,4 +62,8 @@ Desarrollado con Shiny for Python y Polars, optimizado para el procesamiento de 
 
 - UI: Sidebar para filtros globales y nav_panels para separar "Análisis Temporal", "Mapa", "Análisis Etario" y "Anexos".
 
-- Server/Logic: Uso de @reactive.calc para que todos los gráficos beban de la misma base filtrada, evitando cálculos redundantes.
+- Server/Logic: Uso de `reactive.calc` para que todos los gráficos beban de la misma base filtrada, evitando cálculos redundantes.
+
+# Reproducibilidad
+
+Clona el repositorio de Github e instala las librerías especificadas en requirements.txt.

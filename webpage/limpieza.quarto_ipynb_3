@@ -1,0 +1,757 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "6ac72ced",
+   "metadata": {},
+   "source": [
+    "---\n",
+    "title: SESNSP - Prueba técnica\n",
+    "author: Jesús L. Monroy\n",
+    "date: 2026-03-22\n",
+    "lang: es\n",
+    "format: \n",
+    "  html:\n",
+    "    toc: true\n",
+    "    embed-resources: true\n",
+    "    brand: _brand.yml\n",
+    "    theme: styles.scss\n",
+    "jupyter: python3\n",
+    "---\n",
+    "\n",
+    "![](sesnsp.png){width=30%}\n",
+    "\n",
+    "# Procesamiento de datos\n",
+    "\n",
+    "## Librerías"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "59a8713f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# libraries\n",
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import polars as pl\n",
+    "import plotly.express as px\n",
+    "from great_tables import GT, md\n",
+    "from pathlib import Path"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "fc1d4879",
+   "metadata": {},
+   "source": [
+    "## Archivo origen (xlsx)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "d07cf1ce",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# read origin files\n",
+    "incidencias = pl.read_excel(\"../insumos.xlsx\", sheet_name=\"1.1 Incidencia\")\n",
+    "victimas = pl.read_excel(\"../insumos.xlsx\", sheet_name=\"1.2 Víctimas\")\n",
+    "flagrancias = pl.read_excel(\"../insumos.xlsx\", sheet_name=\"2. Flagrancias\")\n",
+    "ordenes = pl.read_excel(\"../insumos.xlsx\", sheet_name=\"3. Órdenes\")\n",
+    "sentencias = pl.read_excel(\"../insumos.xlsx\", sheet_name=\"4. Sentencias\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "e69ee460",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# folder path\n",
+    "folder = Path(\"datasets\")\n",
+    "\n",
+    "# create folder\n",
+    "folder.mkdir(parents=True, exist_ok=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1f6cc864",
+   "metadata": {},
+   "source": [
+    "## Archivos parquet"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "48bed462",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# save parquet files in datasets\n",
+    "incidencias.write_parquet('datasets/incidencias.parquet')\n",
+    "victimas.write_parquet('datasets/victimas.parquet')\n",
+    "flagrancias.write_parquet('datasets/flagrancias.parquet')\n",
+    "ordenes.write_parquet('datasets/ordenes.parquet')\n",
+    "sentencias.write_parquet('datasets/sentencias.parquet')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "2348e75e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# read new parquet files\n",
+    "incidencias = pl.read_parquet('datasets/incidencias.parquet')\n",
+    "victimas = pl.read_parquet('datasets/victimas.parquet')\n",
+    "flagrancias = pl.read_parquet('datasets/flagrancias.parquet')\n",
+    "ordenes = pl.read_parquet('datasets/ordenes.parquet')\n",
+    "sentencias = pl.read_parquet('datasets/sentencias.parquet')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c0719f61",
+   "metadata": {},
+   "source": [
+    "## Limpieza de datos"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "c0edc50d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Define the mapping\n",
+    "rep_map = {\"Á\": \"A\", \"É\": \"E\", \"Í\": \"I\", \"Ó\": \"O\", \"Ú\": \"U\"}\n",
+    "\n",
+    "# Create the expression dynamically\n",
+    "expr = pl.col(\"Delegación hechos\")\n",
+    "\n",
+    "for accent, clean in rep_map.items():\n",
+    "    expr = expr.str.replace_all(accent, clean)\n",
+    "\n",
+    "# Apply to the dataframe\n",
+    "incidencias = (\n",
+    "    incidencias\n",
+    "        .with_columns(\n",
+    "            # uppercase\n",
+    "            pl.col('Delegación hechos').str.to_uppercase().alias(\"Delegación hechos\"),\n",
+    "            # replace accents\n",
+    "            expr.alias(\"delegacion\")\n",
+    "        )\n",
+    "        # drop null coordinates\n",
+    "        .drop_nulls(subset='COORD. X')\n",
+    "        .select(['Carpeta de investigación',\n",
+    "                'Fecha inicio',\n",
+    "                'Hora inicio',\n",
+    "                'Fecha hechos',\n",
+    "                'Hora hechos',\n",
+    "                'delegacion',\n",
+    "                'COORD. X',\n",
+    "                'COORD. Y',\n",
+    "                ])\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "97e18dba",
+   "metadata": {},
+   "source": [
+    "### Incidencias"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "cdb103b6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from pyproj import Transformer\n",
+    "\n",
+    "# transformador coordenadas\n",
+    "transformer = Transformer.from_crs(\"epsg:32614\", \"epsg:4326\", always_xy=True)\n",
+    "\n",
+    "# función de transformación vectorizada\n",
+    "def proyectar_coordenadas(coords):\n",
+    "    \"\"\"\n",
+    "    coords es una lista de dos series de Polars: [COORD. X, COORD. Y]\n",
+    "    Retorna un Struct con Latitud y Longitud\n",
+    "    \"\"\"\n",
+    "    x = coords[0].to_numpy()\n",
+    "    y = coords[1].to_numpy()\n",
+    "    \n",
+    "    # pyproj acepta arrays de numpy, lo que lo hace ultra rápido\n",
+    "    lon, lat = transformer.transform(x, y)\n",
+    "    \n",
+    "    return pl.DataFrame({\n",
+    "        \"latitud\": lat,\n",
+    "        \"longitud\": lon\n",
+    "    }).to_struct(\"coords_wgs84\")\n",
+    "\n",
+    "incidencias = incidencias.with_columns(\n",
+    "    pl.map_batches(\n",
+    "        [pl.col(\"COORD. X\"), pl.col(\"COORD. Y\")], \n",
+    "        proyectar_coordenadas\n",
+    "    ).alias(\"posicion\")\n",
+    ").unnest(\"posicion\")\n",
+    "\n",
+    "incidencias = (\n",
+    "    incidencias\n",
+    "        .select(['Carpeta de investigación',\n",
+    "            'Fecha inicio',\n",
+    "            'Hora inicio',\n",
+    "            'Fecha hechos',\n",
+    "            'Hora hechos',\n",
+    "            'delegacion',\n",
+    "            'latitud',\n",
+    "            'longitud',\n",
+    "        ])\n",
+    "        .rename(\n",
+    "            {\n",
+    "                'Carpeta de investigación': 'carpeta_investigacion',\n",
+    "                'Fecha inicio':'fecha_inicio',\n",
+    "                'Hora inicio':'hora_inicio',\n",
+    "                'Fecha hechos':'fecha_hechos',\n",
+    "                'Hora hechos':'hora_hechos',\n",
+    "\n",
+    "            }\n",
+    "        )\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "c417a205",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (9, 9)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>statistic</th><th>carpeta_investigacion</th><th>fecha_inicio</th><th>hora_inicio</th><th>fecha_hechos</th><th>hora_hechos</th><th>delegacion</th><th>latitud</th><th>longitud</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>f64</td><td>f64</td></tr></thead><tbody><tr><td>&quot;count&quot;</td><td>&quot;199&quot;</td><td>&quot;199&quot;</td><td>&quot;199&quot;</td><td>&quot;199&quot;</td><td>&quot;199&quot;</td><td>&quot;199&quot;</td><td>199.0</td><td>199.0</td></tr><tr><td>&quot;null_count&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>0.0</td><td>0.0</td></tr><tr><td>&quot;mean&quot;</td><td>null</td><td>&quot;2019-10-14 07:35:52.763819&quot;</td><td>null</td><td>&quot;2019-10-07 07:43:06.934673&quot;</td><td>null</td><td>null</td><td>19.371097</td><td>-99.12722</td></tr><tr><td>&quot;std&quot;</td><td>null</td><td>null</td><td>null</td><td>null</td><td>null</td><td>null</td><td>0.096848</td><td>0.063181</td></tr><tr><td>&quot;min&quot;</td><td>&quot;PRUEBA-FACIA/2/ROJO-1DRAMA/001…</td><td>&quot;2018-01-06&quot;</td><td>&quot;00:49&quot;</td><td>&quot;2017-04-29&quot;</td><td>&quot;00:00&quot;</td><td>&quot;ALVARO OBREGON&quot;</td><td>19.17416</td><td>-99.292645</td></tr><tr><td>&quot;25%&quot;</td><td>null</td><td>&quot;2019-03-25&quot;</td><td>null</td><td>&quot;2019-03-20&quot;</td><td>null</td><td>null</td><td>19.297811</td><td>-99.167247</td></tr><tr><td>&quot;50%&quot;</td><td>null</td><td>&quot;2019-11-14&quot;</td><td>null</td><td>&quot;2019-11-07&quot;</td><td>null</td><td>null</td><td>19.375984</td><td>-99.137373</td></tr><tr><td>&quot;75%&quot;</td><td>null</td><td>&quot;2020-06-30&quot;</td><td>null</td><td>&quot;2020-06-28&quot;</td><td>null</td><td>null</td><td>19.442692</td><td>-99.080845</td></tr><tr><td>&quot;max&quot;</td><td>&quot;PRUEBA-PRACTICA/CAMINO-8/ROJO-…</td><td>&quot;2021-03-18&quot;</td><td>&quot;23:30&quot;</td><td>&quot;2021-03-18&quot;</td><td>&quot;22:25&quot;</td><td>&quot;XOCHIMILCO&quot;</td><td>19.576353</td><td>-98.961826</td></tr></tbody></table></div>"
+      ],
+      "text/plain": [
+       "shape: (9, 9)\n",
+       "┌───────────┬───────────┬───────────┬───────────┬───┬───────────┬───────────┬───────────┬──────────┐\n",
+       "│ statistic ┆ carpeta_i ┆ fecha_ini ┆ hora_inic ┆ … ┆ hora_hech ┆ delegacio ┆ latitud   ┆ longitud │\n",
+       "│ ---       ┆ nvestigac ┆ cio       ┆ io        ┆   ┆ os        ┆ n         ┆ ---       ┆ ---      │\n",
+       "│ str       ┆ ion       ┆ ---       ┆ ---       ┆   ┆ ---       ┆ ---       ┆ f64       ┆ f64      │\n",
+       "│           ┆ ---       ┆ str       ┆ str       ┆   ┆ str       ┆ str       ┆           ┆          │\n",
+       "│           ┆ str       ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "╞═══════════╪═══════════╪═══════════╪═══════════╪═══╪═══════════╪═══════════╪═══════════╪══════════╡\n",
+       "│ count     ┆ 199       ┆ 199       ┆ 199       ┆ … ┆ 199       ┆ 199       ┆ 199.0     ┆ 199.0    │\n",
+       "│ null_coun ┆ 0         ┆ 0         ┆ 0         ┆ … ┆ 0         ┆ 0         ┆ 0.0       ┆ 0.0      │\n",
+       "│ t         ┆           ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│ mean      ┆ null      ┆ 2019-10-1 ┆ null      ┆ … ┆ null      ┆ null      ┆ 19.371097 ┆ -99.1272 │\n",
+       "│           ┆           ┆ 4 07:35:5 ┆           ┆   ┆           ┆           ┆           ┆ 2        │\n",
+       "│           ┆           ┆ 2.763819  ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│ std       ┆ null      ┆ null      ┆ null      ┆ … ┆ null      ┆ null      ┆ 0.096848  ┆ 0.063181 │\n",
+       "│ min       ┆ PRUEBA-FA ┆ 2018-01-0 ┆ 00:49     ┆ … ┆ 00:00     ┆ ALVARO    ┆ 19.17416  ┆ -99.2926 │\n",
+       "│           ┆ CIA/2/ROJ ┆ 6         ┆           ┆   ┆           ┆ OBREGON   ┆           ┆ 45       │\n",
+       "│           ┆ O-1DRAMA/ ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│           ┆ 001…      ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│ 25%       ┆ null      ┆ 2019-03-2 ┆ null      ┆ … ┆ null      ┆ null      ┆ 19.297811 ┆ -99.1672 │\n",
+       "│           ┆           ┆ 5         ┆           ┆   ┆           ┆           ┆           ┆ 47       │\n",
+       "│ 50%       ┆ null      ┆ 2019-11-1 ┆ null      ┆ … ┆ null      ┆ null      ┆ 19.375984 ┆ -99.1373 │\n",
+       "│           ┆           ┆ 4         ┆           ┆   ┆           ┆           ┆           ┆ 73       │\n",
+       "│ 75%       ┆ null      ┆ 2020-06-3 ┆ null      ┆ … ┆ null      ┆ null      ┆ 19.442692 ┆ -99.0808 │\n",
+       "│           ┆           ┆ 0         ┆           ┆   ┆           ┆           ┆           ┆ 45       │\n",
+       "│ max       ┆ PRUEBA-PR ┆ 2021-03-1 ┆ 23:30     ┆ … ┆ 22:25     ┆ XOCHIMILC ┆ 19.576353 ┆ -98.9618 │\n",
+       "│           ┆ ACTICA/CA ┆ 8         ┆           ┆   ┆           ┆ O         ┆           ┆ 26       │\n",
+       "│           ┆ MINO-8/RO ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│           ┆ JO-…      ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "└───────────┴───────────┴───────────┴───────────┴───┴───────────┴───────────┴───────────┴──────────┘"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "incidencias.describe()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "959905eb",
+   "metadata": {},
+   "source": [
+    "### Victimas"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "88053e4a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "victimas =(\n",
+    "    victimas\n",
+    "    .with_columns(\n",
+    "        # replace non-binary sex\n",
+    "        pl.col('Sexo').str.replace('Trans Femenino', 'Masculino').alias('Sexo'),\n",
+    "        # replace text\n",
+    "        pl.col('Edad').replace('NO ESPECIFICO','0'),\n",
+    "    )\n",
+    "    .with_columns(\n",
+    "        # cast to integer\n",
+    "        pl.col('Edad').cast(pl.Int32).alias('Edad'),\n",
+    "    )\n",
+    "    .rename(\n",
+    "            {\n",
+    "                'Carpeta de investigación': 'carpeta_investigacion',\n",
+    "                'Sexo': 'sexo',\n",
+    "                'Edad': 'edad',\n",
+    "            }\n",
+    "    )\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "dbe84182",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (9, 4)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>statistic</th><th>carpeta_investigacion</th><th>sexo</th><th>edad</th></tr><tr><td>str</td><td>str</td><td>str</td><td>f64</td></tr></thead><tbody><tr><td>&quot;count&quot;</td><td>&quot;217&quot;</td><td>&quot;217&quot;</td><td>213.0</td></tr><tr><td>&quot;null_count&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>4.0</td></tr><tr><td>&quot;mean&quot;</td><td>null</td><td>null</td><td>34.539906</td></tr><tr><td>&quot;std&quot;</td><td>null</td><td>null</td><td>16.946212</td></tr><tr><td>&quot;min&quot;</td><td>&quot;PRUEBA-E-FCORREO/CORREO-4/ROJO…</td><td>&quot;Femenino&quot;</td><td>0.0</td></tr><tr><td>&quot;25%&quot;</td><td>null</td><td>null</td><td>25.0</td></tr><tr><td>&quot;50%&quot;</td><td>null</td><td>null</td><td>30.0</td></tr><tr><td>&quot;75%&quot;</td><td>null</td><td>null</td><td>45.0</td></tr><tr><td>&quot;max&quot;</td><td>&quot;PRUEBA-PRACTICA/CAMINO-8/ROJO-…</td><td>&quot;Masculino&quot;</td><td>86.0</td></tr></tbody></table></div>"
+      ],
+      "text/plain": [
+       "shape: (9, 4)\n",
+       "┌────────────┬─────────────────────────────────┬───────────┬───────────┐\n",
+       "│ statistic  ┆ carpeta_investigacion           ┆ sexo      ┆ edad      │\n",
+       "│ ---        ┆ ---                             ┆ ---       ┆ ---       │\n",
+       "│ str        ┆ str                             ┆ str       ┆ f64       │\n",
+       "╞════════════╪═════════════════════════════════╪═══════════╪═══════════╡\n",
+       "│ count      ┆ 217                             ┆ 217       ┆ 213.0     │\n",
+       "│ null_count ┆ 0                               ┆ 0         ┆ 4.0       │\n",
+       "│ mean       ┆ null                            ┆ null      ┆ 34.539906 │\n",
+       "│ std        ┆ null                            ┆ null      ┆ 16.946212 │\n",
+       "│ min        ┆ PRUEBA-E-FCORREO/CORREO-4/ROJO… ┆ Femenino  ┆ 0.0       │\n",
+       "│ 25%        ┆ null                            ┆ null      ┆ 25.0      │\n",
+       "│ 50%        ┆ null                            ┆ null      ┆ 30.0      │\n",
+       "│ 75%        ┆ null                            ┆ null      ┆ 45.0      │\n",
+       "│ max        ┆ PRUEBA-PRACTICA/CAMINO-8/ROJO-… ┆ Masculino ┆ 86.0      │\n",
+       "└────────────┴─────────────────────────────────┴───────────┴───────────┘"
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "victimas.describe()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "6aa253f8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# inner join to avoid nulls\n",
+    "df = victimas.join(incidencias, on='carpeta_investigacion', how='inner')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "cee6a81f",
+   "metadata": {},
+   "source": [
+    "### Flagrancias"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "ceb38d1d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "flagrancias = (\n",
+    "    flagrancias\n",
+    "        .rename({\n",
+    "            'Carpeta de investigación':'carpeta_investigacion',\n",
+    "            'Edad imputado':'edad_imp',\n",
+    "            'Sexo imputado':'sexo_imp',\n",
+    "            'Libertad':'libertad',\n",
+    "            'Incompetencia':'incompetencia',\n",
+    "            'Mecanismo alternativo':'mecanismo_alt',\n",
+    "            'Judicialización':'judicializacion',\n",
+    "            'Legalidad de detención':'legal_detencion',\n",
+    "            'Vinculación a proceso':'vinculacion_proceso',\n",
+    "            'Prisión preventiva oficiosa':'PPO',\n",
+    "            'Prisión preventiva justificada':'PPJ',\n",
+    "        })\n",
+    "        .with_columns(\n",
+    "            total_flagrancias=pl.sum_horizontal(\n",
+    "                pl.exclude('carpeta_investigacion','edad_imp','sexo_imp')\n",
+    "            )\n",
+    "        )\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "13cadb4f",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (9, 13)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>statistic</th><th>carpeta_investigacion</th><th>edad_imp</th><th>sexo_imp</th><th>libertad</th><th>incompetencia</th><th>mecanismo_alt</th><th>judicializacion</th><th>legal_detencion</th><th>vinculacion_proceso</th><th>PPO</th><th>PPJ</th><th>total_flagrancias</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td></tr></thead><tbody><tr><td>&quot;count&quot;</td><td>&quot;31&quot;</td><td>&quot;27&quot;</td><td>&quot;30&quot;</td><td>29.0</td><td>29.0</td><td>29.0</td><td>29.0</td><td>29.0</td><td>29.0</td><td>29.0</td><td>29.0</td><td>31.0</td></tr><tr><td>&quot;null_count&quot;</td><td>&quot;0&quot;</td><td>&quot;4&quot;</td><td>&quot;1&quot;</td><td>2.0</td><td>2.0</td><td>2.0</td><td>2.0</td><td>2.0</td><td>2.0</td><td>2.0</td><td>2.0</td><td>0.0</td></tr><tr><td>&quot;mean&quot;</td><td>null</td><td>null</td><td>null</td><td>0.034483</td><td>0.068966</td><td>0.0</td><td>0.758621</td><td>0.758621</td><td>0.689655</td><td>0.689655</td><td>0.0</td><td>2.806452</td></tr><tr><td>&quot;std&quot;</td><td>null</td><td>null</td><td>null</td><td>0.185695</td><td>0.257881</td><td>0.0</td><td>0.435494</td><td>0.435494</td><td>0.470824</td><td>0.470824</td><td>0.0</td><td>1.701359</td></tr><tr><td>&quot;min&quot;</td><td>&quot;PRUEBA-FACIA/2/ROJO-1DRAMA/126…</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td></tr><tr><td>&quot;25%&quot;</td><td>null</td><td>null</td><td>null</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td></tr><tr><td>&quot;50%&quot;</td><td>null</td><td>null</td><td>null</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>4.0</td></tr><tr><td>&quot;75%&quot;</td><td>null</td><td>null</td><td>null</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>4.0</td></tr><tr><td>&quot;max&quot;</td><td>&quot;PRUEBA-PRACTICA/CAMINO-2/ROJO-…</td><td>&quot;No especifica&quot;</td><td>&quot;Masculino&quot;</td><td>1.0</td><td>1.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>4.0</td></tr></tbody></table></div>"
+      ],
+      "text/plain": [
+       "shape: (9, 13)\n",
+       "┌────────────┬────────────┬────────────┬───────────┬───┬────────────┬──────────┬──────┬────────────┐\n",
+       "│ statistic  ┆ carpeta_in ┆ edad_imp   ┆ sexo_imp  ┆ … ┆ vinculacio ┆ PPO      ┆ PPJ  ┆ total_flag │\n",
+       "│ ---        ┆ vestigacio ┆ ---        ┆ ---       ┆   ┆ n_proceso  ┆ ---      ┆ ---  ┆ rancias    │\n",
+       "│ str        ┆ n          ┆ str        ┆ str       ┆   ┆ ---        ┆ f64      ┆ f64  ┆ ---        │\n",
+       "│            ┆ ---        ┆            ┆           ┆   ┆ f64        ┆          ┆      ┆ f64        │\n",
+       "│            ┆ str        ┆            ┆           ┆   ┆            ┆          ┆      ┆            │\n",
+       "╞════════════╪════════════╪════════════╪═══════════╪═══╪════════════╪══════════╪══════╪════════════╡\n",
+       "│ count      ┆ 31         ┆ 27         ┆ 30        ┆ … ┆ 29.0       ┆ 29.0     ┆ 29.0 ┆ 31.0       │\n",
+       "│ null_count ┆ 0          ┆ 4          ┆ 1         ┆ … ┆ 2.0        ┆ 2.0      ┆ 2.0  ┆ 0.0        │\n",
+       "│ mean       ┆ null       ┆ null       ┆ null      ┆ … ┆ 0.689655   ┆ 0.689655 ┆ 0.0  ┆ 2.806452   │\n",
+       "│ std        ┆ null       ┆ null       ┆ null      ┆ … ┆ 0.470824   ┆ 0.470824 ┆ 0.0  ┆ 1.701359   │\n",
+       "│ min        ┆ PRUEBA-FAC ┆ 0          ┆ 0         ┆ … ┆ 0.0        ┆ 0.0      ┆ 0.0  ┆ 0.0        │\n",
+       "│            ┆ IA/2/ROJO- ┆            ┆           ┆   ┆            ┆          ┆      ┆            │\n",
+       "│            ┆ 1DRAMA/126 ┆            ┆           ┆   ┆            ┆          ┆      ┆            │\n",
+       "│            ┆ …          ┆            ┆           ┆   ┆            ┆          ┆      ┆            │\n",
+       "│ 25%        ┆ null       ┆ null       ┆ null      ┆ … ┆ 0.0        ┆ 0.0      ┆ 0.0  ┆ 1.0        │\n",
+       "│ 50%        ┆ null       ┆ null       ┆ null      ┆ … ┆ 1.0        ┆ 1.0      ┆ 0.0  ┆ 4.0        │\n",
+       "│ 75%        ┆ null       ┆ null       ┆ null      ┆ … ┆ 1.0        ┆ 1.0      ┆ 0.0  ┆ 4.0        │\n",
+       "│ max        ┆ PRUEBA-PRA ┆ No         ┆ Masculino ┆ … ┆ 1.0        ┆ 1.0      ┆ 0.0  ┆ 4.0        │\n",
+       "│            ┆ CTICA/CAMI ┆ especifica ┆           ┆   ┆            ┆          ┆      ┆            │\n",
+       "│            ┆ NO-2/ROJO- ┆            ┆           ┆   ┆            ┆          ┆      ┆            │\n",
+       "│            ┆ …          ┆            ┆           ┆   ┆            ┆          ┆      ┆            │\n",
+       "└────────────┴────────────┴────────────┴───────────┴───┴────────────┴──────────┴──────┴────────────┘"
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "flagrancias.describe()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "de129846",
+   "metadata": {},
+   "source": [
+    "### Ordenes"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "ae1d71b0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "ordenes = (\n",
+    "    ordenes\n",
+    "        .rename({\n",
+    "            'Carpeta de investigación':'carpeta_investigacion',\n",
+    "            'Fecha recepción':'fecha_recepcion',\n",
+    "            'Fecha cumplimiento':'fecha_cumplimiento',\n",
+    "        })\n",
+    "        .with_columns(\n",
+    "            pl.col('fecha_recepcion').dt.date().alias('fecha_recepcion')\n",
+    "        )\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "235411df",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (9, 4)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>statistic</th><th>carpeta_investigacion</th><th>fecha_recepcion</th><th>fecha_cumplimiento</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>&quot;count&quot;</td><td>&quot;113&quot;</td><td>&quot;113&quot;</td><td>&quot;113&quot;</td></tr><tr><td>&quot;null_count&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td></tr><tr><td>&quot;mean&quot;</td><td>null</td><td>&quot;2019-05-13 03:11:09.026548&quot;</td><td>&quot;2019-10-15 02:20:10.619469&quot;</td></tr><tr><td>&quot;std&quot;</td><td>null</td><td>null</td><td>null</td></tr><tr><td>&quot;min&quot;</td><td>&quot;ALEATORIO1&quot;</td><td>&quot;2014-11-25&quot;</td><td>&quot;2018-01-16&quot;</td></tr><tr><td>&quot;25%&quot;</td><td>null</td><td>&quot;2018-06-13&quot;</td><td>&quot;2018-12-04&quot;</td></tr><tr><td>&quot;50%&quot;</td><td>null</td><td>&quot;2019-08-05&quot;</td><td>&quot;2019-12-23&quot;</td></tr><tr><td>&quot;75%&quot;</td><td>null</td><td>&quot;2020-08-05&quot;</td><td>&quot;2020-08-13&quot;</td></tr><tr><td>&quot;max&quot;</td><td>&quot;PRUEBA-PRACTICA/CAMINO-6/ROJO-…</td><td>&quot;2021-03-16&quot;</td><td>&quot;2021-03-17&quot;</td></tr></tbody></table></div>"
+      ],
+      "text/plain": [
+       "shape: (9, 4)\n",
+       "┌────────────┬───────────────────────────────────┬─────────────────┬────────────────────────────┐\n",
+       "│ statistic  ┆ carpeta_investigacion             ┆ fecha_recepcion ┆ fecha_cumplimiento         │\n",
+       "│ ---        ┆ ---                               ┆ ---             ┆ ---                        │\n",
+       "│ str        ┆ str                               ┆ str             ┆ str                        │\n",
+       "╞════════════╪═══════════════════════════════════╪═════════════════╪════════════════════════════╡\n",
+       "│ count      ┆ 113                               ┆ 113             ┆ 113                        │\n",
+       "│ null_count ┆ 0                                 ┆ 0               ┆ 0                          │\n",
+       "│ mean       ┆ null                              ┆ 2019-05-13      ┆ 2019-10-15 02:20:10.619469 │\n",
+       "│            ┆                                   ┆ 03:11:09.026548 ┆                            │\n",
+       "│ std        ┆ null                              ┆ null            ┆ null                       │\n",
+       "│ min        ┆ ALEATORIO1                        ┆ 2014-11-25      ┆ 2018-01-16                 │\n",
+       "│ 25%        ┆ null                              ┆ 2018-06-13      ┆ 2018-12-04                 │\n",
+       "│ 50%        ┆ null                              ┆ 2019-08-05      ┆ 2019-12-23                 │\n",
+       "│ 75%        ┆ null                              ┆ 2020-08-05      ┆ 2020-08-13                 │\n",
+       "│ max        ┆ PRUEBA-PRACTICA/CAMINO-6/ROJO-…   ┆ 2021-03-16      ┆ 2021-03-17                 │\n",
+       "└────────────┴───────────────────────────────────┴─────────────────┴────────────────────────────┘"
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "ordenes.describe()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9398e902",
+   "metadata": {},
+   "source": [
+    "### Sentencias"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "b3e3949f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "sentencias = (\n",
+    "    sentencias\n",
+    "        .rename({\n",
+    "            'Carpeta de investigación':'carpeta_investigacion',\n",
+    "            'Fecha de fallo':'fecha_fallo',\n",
+    "            'Tipo de fallo':'tipo_fallo',\n",
+    "            'Sistema':'sistema',\n",
+    "        })\n",
+    "        .with_columns(\n",
+    "            pl.col('fecha_fallo').dt.date().alias('fecha_fallo')\n",
+    "        )\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "5ef75311",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (9, 5)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>statistic</th><th>carpeta_investigacion</th><th>fecha_fallo</th><th>tipo_fallo</th><th>sistema</th></tr><tr><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>&quot;count&quot;</td><td>&quot;54&quot;</td><td>&quot;54&quot;</td><td>&quot;54&quot;</td><td>&quot;54&quot;</td></tr><tr><td>&quot;null_count&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td></tr><tr><td>&quot;mean&quot;</td><td>null</td><td>&quot;2019-07-28 11:06:40&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;std&quot;</td><td>null</td><td>null</td><td>null</td><td>null</td></tr><tr><td>&quot;min&quot;</td><td>&quot;ALEATORIO10&quot;</td><td>&quot;2018-01-05&quot;</td><td>&quot;ABSOLUTORIA&quot;</td><td>&quot;JUICIO ORAL&quot;</td></tr><tr><td>&quot;25%&quot;</td><td>null</td><td>&quot;2019-01-07&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;50%&quot;</td><td>null</td><td>&quot;2019-07-09&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;75%&quot;</td><td>null</td><td>&quot;2020-02-07&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;max&quot;</td><td>&quot;PRUEBA-PRACTICA/CAMINO-6/ROJO-…</td><td>&quot;2021-03-04&quot;</td><td>&quot;MIXTA&quot;</td><td>&quot;TRADICIONAL&quot;</td></tr></tbody></table></div>"
+      ],
+      "text/plain": [
+       "shape: (9, 5)\n",
+       "┌────────────┬─────────────────────────────────┬─────────────────────┬─────────────┬─────────────┐\n",
+       "│ statistic  ┆ carpeta_investigacion           ┆ fecha_fallo         ┆ tipo_fallo  ┆ sistema     │\n",
+       "│ ---        ┆ ---                             ┆ ---                 ┆ ---         ┆ ---         │\n",
+       "│ str        ┆ str                             ┆ str                 ┆ str         ┆ str         │\n",
+       "╞════════════╪═════════════════════════════════╪═════════════════════╪═════════════╪═════════════╡\n",
+       "│ count      ┆ 54                              ┆ 54                  ┆ 54          ┆ 54          │\n",
+       "│ null_count ┆ 0                               ┆ 0                   ┆ 0           ┆ 0           │\n",
+       "│ mean       ┆ null                            ┆ 2019-07-28 11:06:40 ┆ null        ┆ null        │\n",
+       "│ std        ┆ null                            ┆ null                ┆ null        ┆ null        │\n",
+       "│ min        ┆ ALEATORIO10                     ┆ 2018-01-05          ┆ ABSOLUTORIA ┆ JUICIO ORAL │\n",
+       "│ 25%        ┆ null                            ┆ 2019-01-07          ┆ null        ┆ null        │\n",
+       "│ 50%        ┆ null                            ┆ 2019-07-09          ┆ null        ┆ null        │\n",
+       "│ 75%        ┆ null                            ┆ 2020-02-07          ┆ null        ┆ null        │\n",
+       "│ max        ┆ PRUEBA-PRACTICA/CAMINO-6/ROJO-… ┆ 2021-03-04          ┆ MIXTA       ┆ TRADICIONAL │\n",
+       "└────────────┴─────────────────────────────────┴─────────────────────┴─────────────┴─────────────┘"
+      ]
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "sentencias.describe()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "3bf91055",
+   "metadata": {},
+   "source": [
+    "### Joins"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "f472c0af",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# left join with remaining tables\n",
+    "df = (\n",
+    "    df\n",
+    "        .join(flagrancias, on='carpeta_investigacion', how='left')\n",
+    "        .join(ordenes, on='carpeta_investigacion', how='left')\n",
+    "        .join(sentencias, on='carpeta_investigacion', how='left')\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "aad46715",
+   "metadata": {},
+   "source": [
+    "### Consolidado parquet"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "a04699cb",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# save file\n",
+    "df.write_parquet('datasets/df.parquet')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "5b759b6a",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div><style>\n",
+       ".dataframe > thead > tr,\n",
+       ".dataframe > tbody > tr {\n",
+       "  text-align: right;\n",
+       "  white-space: pre-wrap;\n",
+       "}\n",
+       "</style>\n",
+       "<small>shape: (9, 27)</small><table border=\"1\" class=\"dataframe\"><thead><tr><th>statistic</th><th>carpeta_investigacion</th><th>sexo</th><th>edad</th><th>fecha_inicio</th><th>hora_inicio</th><th>fecha_hechos</th><th>hora_hechos</th><th>delegacion</th><th>latitud</th><th>longitud</th><th>edad_imp</th><th>sexo_imp</th><th>libertad</th><th>incompetencia</th><th>mecanismo_alt</th><th>judicializacion</th><th>legal_detencion</th><th>vinculacion_proceso</th><th>PPO</th><th>PPJ</th><th>total_flagrancias</th><th>fecha_recepcion</th><th>fecha_cumplimiento</th><th>fecha_fallo</th><th>tipo_fallo</th><th>sistema</th></tr><tr><td>str</td><td>str</td><td>str</td><td>f64</td><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td><td>f64</td><td>f64</td><td>str</td><td>str</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>str</td><td>str</td><td>str</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>&quot;count&quot;</td><td>&quot;225&quot;</td><td>&quot;225&quot;</td><td>222.0</td><td>&quot;225&quot;</td><td>&quot;225&quot;</td><td>&quot;225&quot;</td><td>&quot;225&quot;</td><td>&quot;225&quot;</td><td>225.0</td><td>225.0</td><td>&quot;35&quot;</td><td>&quot;38&quot;</td><td>37.0</td><td>37.0</td><td>37.0</td><td>37.0</td><td>37.0</td><td>37.0</td><td>37.0</td><td>37.0</td><td>39.0</td><td>&quot;57&quot;</td><td>&quot;57&quot;</td><td>&quot;16&quot;</td><td>&quot;16&quot;</td><td>&quot;16&quot;</td></tr><tr><td>&quot;null_count&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>3.0</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>0.0</td><td>0.0</td><td>&quot;190&quot;</td><td>&quot;187&quot;</td><td>188.0</td><td>188.0</td><td>188.0</td><td>188.0</td><td>188.0</td><td>188.0</td><td>188.0</td><td>188.0</td><td>186.0</td><td>&quot;168&quot;</td><td>&quot;168&quot;</td><td>&quot;209&quot;</td><td>&quot;209&quot;</td><td>&quot;209&quot;</td></tr><tr><td>&quot;mean&quot;</td><td>null</td><td>null</td><td>34.427928</td><td>&quot;2019-10-25 15:15:12&quot;</td><td>null</td><td>&quot;2019-10-19 10:40:00&quot;</td><td>null</td><td>null</td><td>19.36939</td><td>-99.123878</td><td>null</td><td>null</td><td>0.027027</td><td>0.054054</td><td>0.0</td><td>0.810811</td><td>0.810811</td><td>0.702703</td><td>0.702703</td><td>0.0</td><td>2.948718</td><td>&quot;2020-02-17 09:15:47.368421&quot;</td><td>&quot;2020-03-03 06:44:12.631579&quot;</td><td>&quot;2020-02-18 12:00:00&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;std&quot;</td><td>null</td><td>null</td><td>16.930834</td><td>null</td><td>null</td><td>null</td><td>null</td><td>null</td><td>0.098211</td><td>0.062404</td><td>null</td><td>null</td><td>0.164399</td><td>0.229243</td><td>0.0</td><td>0.397061</td><td>0.397061</td><td>0.463373</td><td>0.463373</td><td>0.0</td><td>1.58859</td><td>null</td><td>null</td><td>null</td><td>null</td><td>null</td></tr><tr><td>&quot;min&quot;</td><td>&quot;PRUEBA-FACIA/2/ROJO-1DRAMA/001…</td><td>&quot;Femenino&quot;</td><td>0.0</td><td>&quot;2018-01-06&quot;</td><td>&quot;00:49&quot;</td><td>&quot;2017-04-29&quot;</td><td>&quot;00:00&quot;</td><td>&quot;ALVARO OBREGON&quot;</td><td>19.17416</td><td>-99.292645</td><td>&quot;0&quot;</td><td>&quot;0&quot;</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>&quot;2018-01-18&quot;</td><td>&quot;2018-01-18&quot;</td><td>&quot;2019-03-29&quot;</td><td>&quot;ABSOLUTORIA&quot;</td><td>&quot;JUICIO ORAL&quot;</td></tr><tr><td>&quot;25%&quot;</td><td>null</td><td>null</td><td>24.0</td><td>&quot;2019-03-30&quot;</td><td>null</td><td>&quot;2019-03-25&quot;</td><td>null</td><td>null</td><td>19.297737</td><td>-99.161889</td><td>null</td><td>null</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>2.0</td><td>&quot;2019-08-05&quot;</td><td>&quot;2019-10-09&quot;</td><td>&quot;2019-07-09&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;50%&quot;</td><td>null</td><td>null</td><td>30.0</td><td>&quot;2019-12-04&quot;</td><td>null</td><td>&quot;2019-11-25&quot;</td><td>null</td><td>null</td><td>19.385285</td><td>-99.134364</td><td>null</td><td>null</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>4.0</td><td>&quot;2020-08-05&quot;</td><td>&quot;2020-08-13&quot;</td><td>&quot;2019-12-09&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;75%&quot;</td><td>null</td><td>null</td><td>45.0</td><td>&quot;2020-07-24&quot;</td><td>null</td><td>&quot;2020-07-24&quot;</td><td>null</td><td>null</td><td>19.440826</td><td>-99.07764</td><td>null</td><td>null</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>4.0</td><td>&quot;2020-09-18&quot;</td><td>&quot;2020-09-29&quot;</td><td>&quot;2020-09-30&quot;</td><td>null</td><td>null</td></tr><tr><td>&quot;max&quot;</td><td>&quot;PRUEBA-PRACTICA/CAMINO-8/ROJO-…</td><td>&quot;Masculino&quot;</td><td>86.0</td><td>&quot;2021-03-18&quot;</td><td>&quot;23:30&quot;</td><td>&quot;2021-03-18&quot;</td><td>&quot;22:25&quot;</td><td>&quot;XOCHIMILCO&quot;</td><td>19.576353</td><td>-98.961826</td><td>&quot;No especifica&quot;</td><td>&quot;Masculino&quot;</td><td>1.0</td><td>1.0</td><td>0.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>0.0</td><td>4.0</td><td>&quot;2021-03-16&quot;</td><td>&quot;2021-03-17&quot;</td><td>&quot;2021-03-04&quot;</td><td>&quot;CONDENATORIA&quot;</td><td>&quot;PROC ABREVIADO&quot;</td></tr></tbody></table></div>"
+      ],
+      "text/plain": [
+       "shape: (9, 27)\n",
+       "┌───────────┬───────────┬───────────┬───────────┬───┬───────────┬───────────┬───────────┬──────────┐\n",
+       "│ statistic ┆ carpeta_i ┆ sexo      ┆ edad      ┆ … ┆ fecha_cum ┆ fecha_fal ┆ tipo_fall ┆ sistema  │\n",
+       "│ ---       ┆ nvestigac ┆ ---       ┆ ---       ┆   ┆ plimiento ┆ lo        ┆ o         ┆ ---      │\n",
+       "│ str       ┆ ion       ┆ str       ┆ f64       ┆   ┆ ---       ┆ ---       ┆ ---       ┆ str      │\n",
+       "│           ┆ ---       ┆           ┆           ┆   ┆ str       ┆ str       ┆ str       ┆          │\n",
+       "│           ┆ str       ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "╞═══════════╪═══════════╪═══════════╪═══════════╪═══╪═══════════╪═══════════╪═══════════╪══════════╡\n",
+       "│ count     ┆ 225       ┆ 225       ┆ 222.0     ┆ … ┆ 57        ┆ 16        ┆ 16        ┆ 16       │\n",
+       "│ null_coun ┆ 0         ┆ 0         ┆ 3.0       ┆ … ┆ 168       ┆ 209       ┆ 209       ┆ 209      │\n",
+       "│ t         ┆           ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│ mean      ┆ null      ┆ null      ┆ 34.427928 ┆ … ┆ 2020-03-0 ┆ 2020-02-1 ┆ null      ┆ null     │\n",
+       "│           ┆           ┆           ┆           ┆   ┆ 3 06:44:1 ┆ 8         ┆           ┆          │\n",
+       "│           ┆           ┆           ┆           ┆   ┆ 2.631579  ┆ 12:00:00  ┆           ┆          │\n",
+       "│ std       ┆ null      ┆ null      ┆ 16.930834 ┆ … ┆ null      ┆ null      ┆ null      ┆ null     │\n",
+       "│ min       ┆ PRUEBA-FA ┆ Femenino  ┆ 0.0       ┆ … ┆ 2018-01-1 ┆ 2019-03-2 ┆ ABSOLUTOR ┆ JUICIO   │\n",
+       "│           ┆ CIA/2/ROJ ┆           ┆           ┆   ┆ 8         ┆ 9         ┆ IA        ┆ ORAL     │\n",
+       "│           ┆ O-1DRAMA/ ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│           ┆ 001…      ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│ 25%       ┆ null      ┆ null      ┆ 24.0      ┆ … ┆ 2019-10-0 ┆ 2019-07-0 ┆ null      ┆ null     │\n",
+       "│           ┆           ┆           ┆           ┆   ┆ 9         ┆ 9         ┆           ┆          │\n",
+       "│ 50%       ┆ null      ┆ null      ┆ 30.0      ┆ … ┆ 2020-08-1 ┆ 2019-12-0 ┆ null      ┆ null     │\n",
+       "│           ┆           ┆           ┆           ┆   ┆ 3         ┆ 9         ┆           ┆          │\n",
+       "│ 75%       ┆ null      ┆ null      ┆ 45.0      ┆ … ┆ 2020-09-2 ┆ 2020-09-3 ┆ null      ┆ null     │\n",
+       "│           ┆           ┆           ┆           ┆   ┆ 9         ┆ 0         ┆           ┆          │\n",
+       "│ max       ┆ PRUEBA-PR ┆ Masculino ┆ 86.0      ┆ … ┆ 2021-03-1 ┆ 2021-03-0 ┆ CONDENATO ┆ PROC ABR │\n",
+       "│           ┆ ACTICA/CA ┆           ┆           ┆   ┆ 7         ┆ 4         ┆ RIA       ┆ EVIADO   │\n",
+       "│           ┆ MINO-8/RO ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "│           ┆ JO-…      ┆           ┆           ┆   ┆           ┆           ┆           ┆          │\n",
+       "└───────────┴───────────┴───────────┴───────────┴───┴───────────┴───────────┴───────────┴──────────┘"
+      ]
+     },
+     "execution_count": 20,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.describe()"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3",
+   "path": "/Users/jesuslm/miniforge3/envs/ds-projects/share/jupyter/kernels/python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
