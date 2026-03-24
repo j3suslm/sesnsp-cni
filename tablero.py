@@ -369,6 +369,7 @@ with ui.nav_panel("Anexos"):
                     'delegacion',
                     ),
                     row_selection_mode="single",
+                    width="100%",
                     summary=False,
                 )
             
