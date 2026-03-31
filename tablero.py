@@ -17,7 +17,8 @@ ui.page_opts(title="Monitor de Incidencias CDMX", fillable=True, theme=ui.Theme.
 
 # sidebar
 with ui.sidebar(open='desktop', width=260,):
-    ui.markdown('<img src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Logo_SESNSP.png" alt="sesnsp" width="200"/>')
+    #ui.markdown('<img src="https://upload.wikimedia.org/wikipedia/commons/e/ed/Logo_SESNSP.png" alt="sesnsp" width="200"/>')
+    ui.markdown('<img src="https://logoeps.com/wp-content/uploads/2013/03/flag-of-mexico-vector-logo.png" alt="mexico" width="200"/>')
 
     ui.input_select("delegacion", "Delegación:", choices=["TODAS"] + delegaciones)
     #ui.input_slider("mes_range", "Rango de Meses:", min=1, max=12, value=[1, 12])
@@ -194,7 +195,7 @@ def bienvenida():
                 ui.h3("Dashboard Delictivo", 
                       style="color: #691c32; font-weight: bold;"),
                 ui.p("Herramienta técnica para el análisis de indicadores de seguridad pública Ciudad de México."),
-                ui.p("Elaborado por Jesús L. Monroy."),
+                ui.p("Elaborado por Jesus LM"),
                 style="text-align: center; padding: 10px;"
             ),
             title=None,
@@ -229,7 +230,7 @@ with ui.nav_panel("Overview"):
     datos estructurados de alta velocidad y visualizaciones reactivas con `Plotly` y
     `Folium`.
 
-    <i style="color:#bc955c;">Elaborado por: Jesús L. Monroy</i>
+    <i style="color:#bc955c;">Elaborado por: Jesus LM</i>
     <br>
     `2026-03-22`
     <br>
