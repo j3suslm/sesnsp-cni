@@ -369,7 +369,7 @@ with ui.nav_panel("Anexos"):
                     'fecha_hechos',
                     'delegacion',
                     ),
-                    selection_mode="single",
+                    selection_mode="row",
                     width="100%",
                     summary=False,
                 )
@@ -382,7 +382,7 @@ with ui.nav_panel("Anexos"):
                     df = generar_tabla_resumen(filtered_df())
                     return render.DataGrid(
                         df,
-                        selection_mode="single",
+                        selection_mode="row",
                         width="100%",
                         summary=False,
                     )
@@ -394,6 +394,6 @@ with ui.nav_panel("Anexos"):
             def inc_del_table():
                 return render.DataGrid(
                     incidencias_delegacion(),
-                    selection_mode="single",
+                    selection_mode="row",
                     summary=False,
                 )
