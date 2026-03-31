@@ -7,7 +7,7 @@ import plotly.express as px
 import folium
 
 # read dataset
-df = pl.read_parquet('datasets/df.parquet')
+df = pl.read_parquet('df.parquet')
 
 # delegaciones array
 delegaciones = sorted(df['delegacion'].unique().to_list())
@@ -370,6 +370,7 @@ with ui.nav_panel("Anexos"):
                     'delegacion',
                     ),
                     width="100%",
+                    selection_mode="row",
                     summary=False,
                 )
             
@@ -382,6 +383,7 @@ with ui.nav_panel("Anexos"):
                     return render.DataGrid(
                         df,
                         width="100%",
+                        selection_mode="row",
                         summary=False,
                     )
 
@@ -392,5 +394,6 @@ with ui.nav_panel("Anexos"):
             def inc_del_table():
                 return render.DataGrid(
                     incidencias_delegacion(),
+                    selection_mode="row",
                     summary=False,
                 )

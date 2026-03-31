@@ -300,7 +300,7 @@ Jesus L. Monroy
 Economist & Data Scientist
 :::
 
-::: {style="color: #6f7271; font-size: 14px; width: 35%; text-align: justify;"}
+::: {style="color: #6f7271; font-size: 14px; width: 40%; text-align: justify;"}
 Passionate about creating tools that make data accessible and impactful using SQL, Python, Streamlit, and Tableau in sectors like Public Security, e-commerce, and Healthcare.     
 BA in Economics, MA in Information Technology, and Data Science and Machine Learning certification.
 :::

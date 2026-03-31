@@ -1,5 +1,5 @@
 ---
-title: Prueba Técnica
+title: SESNSP - Prueba Técnica
 title-slide-attributes:
   data-background-image: slides-fondo.png
   data-background-size: cover
